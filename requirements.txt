@@ -1,0 +1,30 @@
+# Telegram Bot
+aiogram==3.4.1
+aiohttp==3.9.1
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# Database
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# AI/ML
+# google-generativeai==0.3.2  # для Google Gemini
+# openai==1.10.0  # для OpenAI
+# tiktoken==0.5.2  # для подсчёта токенов OpenAI
+
+# Vector Database
+# pgvector уже установлен в PostgreSQL через Docker
+
+# Environment
+python-dotenv==1.0.0
+
+# Utilities
+pydantic==2.5.3
+python-multipart==0.0.6
+
+# Optional (для продакшена)
+# redis==5.0.1  # для кэширования
+# celery==5.3.6  # для фоновых задач
