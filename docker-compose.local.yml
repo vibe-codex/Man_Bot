@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL с pgvector для локального тестирования
+  postgres-local:
+    image: pgvector/pgvector:pg16
+    container_name: man_bot_postgres_local
+    environment:
+      POSTGRES_DB: man_vector_db
+      POSTGRES_USER: man_admin
+      POSTGRES_PASSWORD: man_password_2026
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+      - ./init_db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U man_admin -d man_vector_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - man_bot_network
+
+  # RAG Server (FastAPI) - локальная версия
+  rag-server-local:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.local
+    container_name: man_bot_rag_local
+    environment:
+      - DB_DSN=postgresql://man_admin:man_password_2026@postgres-local:5432/man_vector_db
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gemini-pro}
+      - EMBED_MODEL=${EMBED_MODEL:-models/embedding-001}
+      - ENV=development
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres-local:
+        condition: service_healthy
+    volumes:
+      - ./server:/app
+      - ./KIMI_OUTPUT:/app/knowledge_files:ro
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - man_bot_network
+
+  # Telegram Bot - локальная версия
+  telegram-bot-local:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile.local
+    container_name: man_bot_telegram_local
+    environment:
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+      - RAG_SERVER_URL=http://rag-server-local:8000
+      - ENV=development
+    depends_on:
+      - rag-server-local
+    volumes:
+      - ./bot:/app
+    command: python bot.py
+    networks:
+      - man_bot_network
+
+  # pgAdmin для удобного просмотра базы (опционально)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: man_bot_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres-local
+    networks:
+      - man_bot_network
+
+volumes:
+  postgres_local_data:
+
+networks:
+  man_bot_network:
+    driver: bridge
